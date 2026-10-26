@@ -1,0 +1,18 @@
+configuration:
+  university:
+    name: Университет
+    description: "ДГТУ — edu.donstu.ru. ПИ — ПИ ДГТУ, edu-tpi.donstu.ru."
+  target:
+    name: Чьё расписание
+    description: Группа студента или преподаватель.
+  name:
+    name: Группа или фамилия
+    description: "Точное имя группы, например ВЗИС21, или фамилия преподавателя."
+  refresh_minutes:
+    name: Обновление, минут
+    description: Как часто забирать расписание с сайта университета.
+  subgroup:
+    name: Подгруппа
+    description: "0 — показывать все. 1 или 2 — только общая пара и эта подгруппа."
+network:
+  8099/tcp: Страница расписания для карточки на обзоре

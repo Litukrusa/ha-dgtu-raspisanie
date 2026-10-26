@@ -1,0 +1,18 @@
+configuration:
+  university:
+    name: University
+    description: "ДГТУ is edu.donstu.ru. ПИ is the Polytechnic Institute, edu-tpi.donstu.ru."
+  target:
+    name: Whose timetable
+    description: A student group or a teacher.
+  name:
+    name: Group or surname
+    description: Exact group name, for example ВЗИС21, or a teacher's surname.
+  refresh_minutes:
+    name: Refresh, minutes
+    description: How often to reload the timetable from the university site.
+  subgroup:
+    name: Subgroup
+    description: "0 shows every subgroup. 1 or 2 keeps shared lessons and that subgroup."
+network:
+  8099/tcp: Timetable page for a dashboard card
