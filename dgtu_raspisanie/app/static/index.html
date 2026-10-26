@@ -230,6 +230,22 @@
     .banner { margin-bottom: 12px; }
     .suggestions { margin: 8px 0 0; padding-left: 18px; }
     .suggestions li { margin: 4px 0; color: var(--text); }
+    .pin {
+      width: 100%;
+      margin-top: 12px;
+      min-height: 42px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--bg-raise);
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .pin-note {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .pin-note:empty { display: none; }
     .foot {
       margin-top: 16px;
       color: var(--muted);
@@ -260,6 +276,8 @@
         <button type="button" class="nav" id="next" aria-label="Следующая неделя">›</button>
       </div>
       <div class="days" id="days" role="group" aria-label="Дни недели"></div>
+      <button type="button" class="pin" id="pin">На главный экран</button>
+      <p class="pin-note" id="pin-note"></p>
     </header>
     <div id="notice"></div>
     <div class="meta" id="meta"></div>
@@ -482,6 +500,76 @@
     function setPressed(today, tomorrow) {
       btnToday.setAttribute("aria-pressed", today ? "true" : "false");
       btnTomorrow.setAttribute("aria-pressed", tomorrow ? "true" : "false");
+    }
+
+    const CARD_RESOURCE = "/local/dgtu-raspisanie-card.js?v=1.1.0";
+    document.getElementById("pin").addEventListener("click", pinToDashboard);
+
+    function parentHass() {
+      try {
+        const root = window.parent.document.querySelector("home-assistant");
+        return root && root.hass ? root.hass : null;
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function containsCard(node) {
+      if (!node || typeof node !== "object") return false;
+      if (node.type === "custom:dgtu-raspisanie-card") return true;
+      return ["cards", "sections", "views"].some((key) => Array.isArray(node[key]) && node[key].some(containsCard));
+    }
+
+    function insertCard(view) {
+      const card = { type: "custom:dgtu-raspisanie-card", grid_options: { columns: 12, rows: "auto" } };
+      if (Array.isArray(view.sections)) {
+        if (!view.sections.length) view.sections.push({ type: "grid", cards: [] });
+        const cards = view.sections[0].cards || (view.sections[0].cards = []);
+        const index = cards[0] && cards[0].type === "heading" ? 1 : 0;
+        cards.splice(index, 0, card);
+        return;
+      }
+      view.cards = view.cards || [];
+      view.cards.unshift(card);
+    }
+
+    async function pinToDashboard() {
+      const note = document.getElementById("pin-note");
+      const hass = parentHass();
+      if (!hass) {
+        note.textContent = "Откройте пункт «Расписание» в боковой панели Home Assistant и нажмите кнопку ещё раз.";
+        return;
+      }
+      note.textContent = "Добавляю на обзор…";
+      try {
+        const resources = await hass.callWS({ type: "lovelace/resources" });
+        const current = (resources || []).find((item) => (item.url || "").includes("dgtu-raspisanie-card.js"));
+        if (!current) {
+          await hass.callWS({ type: "lovelace/resources/create", url: CARD_RESOURCE, res_type: "module" });
+        } else if (current.url !== CARD_RESOURCE) {
+          await hass.callWS({
+            type: "lovelace/resources/update",
+            resource_id: current.id,
+            url: CARD_RESOURCE,
+            res_type: "module",
+          });
+        }
+        const config = await hass.callWS({ type: "lovelace/config", url_path: null });
+        const views = config.views || [];
+        if (!views.length || config.strategy || views[0].strategy) {
+          note.textContent = "Карточка уже в списке. На обзоре нажмите карандаш, затем «Добавить карточку» и выберите «Расписание ДГТУ».";
+          return;
+        }
+        if (containsCard(views[0])) {
+          note.textContent = "Расписание уже стоит на главном экране. Обновите страницу, если его не видно.";
+          return;
+        }
+        insertCard(views[0]);
+        await hass.callWS({ type: "lovelace/config/save", url_path: null, config });
+        note.textContent = "Готово. Обновите главную страницу — расписание будет на обзоре.";
+      } catch (error) {
+        note.textContent = "Не получилось вставить карточку самому. На обзоре нажмите карандаш → Добавить карточку → Расписание ДГТУ.";
+      }
     }
 
     load(new URLSearchParams(location.search).get("date"));

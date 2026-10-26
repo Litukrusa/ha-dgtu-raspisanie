@@ -17,6 +17,8 @@ from zoneinfo import ZoneInfo
 
 APP_DIR = Path(__file__).resolve().parent
 INDEX_PATH = APP_DIR / "static" / "index.html"
+CARD_PATH = APP_DIR / "static" / "dgtu-raspisanie-card.js"
+PREVIEW_PATH = APP_DIR / "static" / "preview.html"
 OPTIONS_PATH = Path(os.environ.get("OPTIONS_PATH", "/data/options.json"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8099"))
@@ -481,6 +483,52 @@ def schedule_for(requested):
     }
 
 
+def collect_dashboard():
+    options = load_options()
+    today = today_moscow()
+    start = week_monday(today) - timedelta(days=7)
+    merged = {}
+    meta = None
+    error = None
+    for index in range(4):
+        monday = start + timedelta(days=7 * index)
+        try:
+            payload = schedule_for(monday)
+        except ScheduleError as exc:
+            error = exc
+            message = str(exc)
+            if any(part in message for part in ("не найдена", "Укажите", "Несколько", "несколько")):
+                break
+            continue
+        if meta is None or monday == week_monday(today):
+            meta = payload
+        for day in payload["days"]:
+            merged[day["date"]] = day
+    if meta is None:
+        return {
+            "ok": False,
+            "error": str(error) if error else "Нет данных",
+            "suggestions": error.suggestions if error else [],
+            "today": today.isoformat(),
+            "refresh_minutes": options["refresh_minutes"],
+            "days": [],
+        }
+    return {
+        "ok": True,
+        "stale": meta.get("stale", False),
+        "today": today.isoformat(),
+        "title": meta["title"],
+        "person": meta["person"],
+        "university": meta["university"],
+        "week_number": meta.get("week_number"),
+        "week_kind": meta.get("week_kind"),
+        "updated": meta.get("updated"),
+        "refresh_minutes": options["refresh_minutes"],
+        "timezone": "Europe/Moscow",
+        "days": [merged[key] for key in sorted(merged)],
+    }
+
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -489,6 +537,12 @@ class Handler(BaseHTTPRequestHandler):
             parsed = urlparse(self.path)
             if parsed.path in ("/", "/index.html"):
                 self._send(200, INDEX_PATH.read_bytes(), "text/html; charset=utf-8")
+            elif parsed.path == "/preview":
+                self._send(200, PREVIEW_PATH.read_bytes(), "text/html; charset=utf-8")
+            elif parsed.path == "/dgtu-raspisanie-card.js":
+                self._send(200, CARD_PATH.read_bytes(), "text/javascript; charset=utf-8")
+            elif parsed.path == "/local/dgtu-raspisanie.json":
+                self._dashboard_file()
             elif parsed.path == "/api/health":
                 self._send_json(200, {"ok": True})
             elif parsed.path == "/api/schedule":
@@ -498,6 +552,15 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             traceback.print_exc()
             self._send_json(500, {"ok": False, "error": "Внутренняя ошибка приложения"})
+
+    def _dashboard_file(self):
+        from publish import www_dir
+
+        file = www_dir() / "dgtu-raspisanie.json"
+        if not file.is_file():
+            self._send_json(404, {"ok": False, "error": "Расписание ещё загружается"})
+            return
+        self._send(200, file.read_bytes(), "application/json; charset=utf-8")
 
     def _schedule(self, query):
         raw = (query.get("date") or [None])[0]
@@ -533,6 +596,9 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    from publish import start_background
+
+    start_background(collect_dashboard)
     server = ThreadingHTTPServer((HOST, PORT), Handler)
     print(f"Расписание ДГТУ слушает {HOST}:{PORT}", flush=True)
     try:
