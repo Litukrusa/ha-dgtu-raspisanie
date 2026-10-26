@@ -246,6 +246,52 @@
       font-size: 13px;
     }
     .pin-note:empty { display: none; }
+    .setup { margin-top: 8px; }
+    .setup[hidden], [hidden] { display: none !important; }
+    .choice { margin-top: 12px; }
+    #query {
+      width: 100%;
+      margin-top: 12px;
+      min-height: 48px;
+      box-sizing: border-box;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--bg-raise);
+      color: var(--text);
+      padding: 0 14px;
+      font: inherit;
+    }
+    .hits { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .hit {
+      width: 100%;
+      text-align: left;
+      min-height: 52px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--card);
+    }
+    .hit strong { display: block; }
+    .hit span { color: var(--muted); font-size: 13px; }
+    .hint { margin: 10px 0 0; color: var(--muted); font-size: 14px; }
+    .manual {
+      margin-top: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--bg-raise);
+      color: var(--text);
+      font-size: 13px;
+      white-space: pre-wrap;
+      user-select: all;
+    }
+    .change {
+      border: 0;
+      background: transparent;
+      color: var(--accent);
+      font-weight: 700;
+      min-height: 32px;
+      padding: 0;
+    }
     .foot {
       margin-top: 16px;
       color: var(--muted);
@@ -263,6 +309,7 @@
     <header>
       <div class="kicker">
         <span id="who">Расписание</span>
+        <button type="button" class="change" id="change">Сменить</button>
         <span id="week"></span>
       </div>
       <h1 id="heading">Загружаю…</h1>
@@ -279,6 +326,19 @@
       <button type="button" class="pin" id="pin">На главный экран</button>
       <p class="pin-note" id="pin-note"></p>
     </header>
+    <section class="setup" id="setup" hidden>
+      <div class="segment choice" id="unis" role="group" aria-label="Университет">
+        <button type="button" data-uni="ДГТУ" aria-pressed="true">ДГТУ</button>
+        <button type="button" data-uni="ПИ" aria-pressed="false">ПИ ДГТУ</button>
+      </div>
+      <div class="segment choice" id="kinds" role="group" aria-label="Кого искать">
+        <button type="button" data-kind="Группа" aria-pressed="true">Группа</button>
+        <button type="button" data-kind="Преподаватель" aria-pressed="false">Преподаватель</button>
+      </div>
+      <input id="query" type="search" placeholder="Например ВИ21 или Горбанев" autocomplete="off" enterkeyhint="search">
+      <p class="hint" id="search-hint">Введите хотя бы 2 буквы и выберите строку из списка.</p>
+      <div class="hits" id="hits"></div>
+    </section>
     <div id="notice"></div>
     <div class="meta" id="meta"></div>
     <div class="cards" id="cards"></div>
@@ -286,7 +346,7 @@
   </div>
   <script>
     const base = location.pathname.replace(/[^/]*$/, "");
-    const state = { payload: null, selected: null };
+    const state = { payload: null, selected: null, picking: false };
 
     const btnToday = document.getElementById("btn-today");
     const btnTomorrow = document.getElementById("btn-tomorrow");
@@ -383,15 +443,24 @@
       if (!payload.ok) {
         document.getElementById("who").textContent = "Расписание";
         document.getElementById("week").textContent = "";
-        document.getElementById("heading").textContent = "Расписание не открылось";
-        document.getElementById("glance").textContent = "";
-        const items = (payload.suggestions || []).map((name) => `<li>${escapeHtml(name)}</li>`).join("");
-        notice.innerHTML = `<div class="banner"><strong>${escapeHtml(payload.error || "Ошибка")}</strong>${
-          items ? `<ul class="suggestions">${items}</ul>` : "Проверьте университет, тип и имя в конфигурации приложения."
-        }</div>`;
+        const needsChoice = /Укажите группу|не найдена|несколько|Несколько/.test(payload.error || "");
+        setSetup(needsChoice || state.picking);
+        if (needsChoice && !state.picking) {
+          document.getElementById("heading").textContent = "Выберите группу";
+          document.getElementById("glance").textContent = "Найдите группу или преподавателя и нажмите на строку.";
+          notice.innerHTML = "";
+        } else if (!state.picking) {
+          document.getElementById("heading").textContent = "Расписание не открылось";
+          document.getElementById("glance").textContent = "";
+          const items = (payload.suggestions || []).map((name) => `<li>${escapeHtml(name)}</li>`).join("");
+          notice.innerHTML = `<div class="banner"><strong>${escapeHtml(payload.error || "Ошибка")}</strong>${
+            items ? `<ul class="suggestions">${items}</ul>` : ""
+          }</div>`;
+        }
         setPressed(null, null);
         return;
       }
+      if (!state.picking) setSetup(false);
 
       const today = payload.today;
       const tomorrow = addDays(today, 1);
@@ -502,8 +571,104 @@
       btnTomorrow.setAttribute("aria-pressed", tomorrow ? "true" : "false");
     }
 
-    const CARD_RESOURCE = "/local/dgtu-raspisanie-card.js?v=1.1.0";
+    const CARD_RESOURCE = "/local/dgtu-raspisanie-card.js?v=1.2.0";
+    const embed = new URLSearchParams(location.search).get("embed") === "1";
+    const picker = { university: "ДГТУ", target: "Группа" };
+    if (embed) document.getElementById("pin").hidden = true;
     document.getElementById("pin").addEventListener("click", pinToDashboard);
+    document.getElementById("change").addEventListener("click", () => {
+      state.picking = true;
+      setSetup(true);
+      document.getElementById("heading").textContent = "Выберите группу";
+      document.getElementById("glance").textContent = "Найдите группу или преподавателя и нажмите на строку.";
+      document.getElementById("query").focus();
+    });
+    document.getElementById("unis").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-uni]");
+      if (!button) return;
+      picker.university = button.dataset.uni;
+      document.querySelectorAll("[data-uni]").forEach((item) => item.setAttribute("aria-pressed", item === button));
+      queueSearch();
+    });
+    document.getElementById("kinds").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-kind]");
+      if (!button) return;
+      picker.target = button.dataset.kind;
+      document.querySelectorAll("[data-kind]").forEach((item) => item.setAttribute("aria-pressed", item === button));
+      document.getElementById("query").placeholder = picker.target === "Группа" ? "Например ВИ21" : "Например Горбанев";
+      queueSearch();
+    });
+    document.getElementById("query").addEventListener("input", queueSearch);
+
+    let searchTimer = 0;
+    function queueSearch() {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(runSearch, 250);
+    }
+
+    async function runSearch() {
+      const query = document.getElementById("query").value.trim();
+      const hint = document.getElementById("search-hint");
+      const hits = document.getElementById("hits");
+      if (query.length < 2) {
+        hint.textContent = "Введите хотя бы 2 буквы и выберите строку из списка.";
+        hits.innerHTML = "";
+        return;
+      }
+      hint.textContent = "Ищу…";
+      const params = new URLSearchParams({ university: picker.university, target: picker.target, q: query });
+      let payload;
+      try {
+        const response = await fetch(base + "api/search?" + params.toString(), { cache: "no-store" });
+        payload = await response.json();
+      } catch (error) {
+        hint.textContent = "Не удалось выполнить поиск.";
+        return;
+      }
+      if (!payload.ok) {
+        hint.textContent = payload.error || "Поиск не удался.";
+        hits.innerHTML = "";
+        return;
+      }
+      const results = payload.results || [];
+      hint.textContent = results.length ? "Нажмите на свою строку." : "Ничего не найдено. Проверьте университет и написание.";
+      hits.innerHTML = results.map((item) => `
+        <button type="button" class="hit" data-name="${escapeHtml(item.name)}">
+          <strong>${escapeHtml(item.name)}</strong>
+          ${item.detail ? `<span>${escapeHtml(item.detail)}</span>` : ""}
+        </button>`).join("");
+      hits.querySelectorAll(".hit").forEach((button) => {
+        button.addEventListener("click", () => choose(button.dataset.name));
+      });
+    }
+
+    async function choose(name) {
+      const hint = document.getElementById("search-hint");
+      hint.textContent = "Открываю расписание…";
+      const response = await fetch(base + "api/profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ university: picker.university, target: picker.target, name })
+      });
+      const payload = await response.json();
+      if (!payload.ok) {
+        hint.textContent = payload.error || "Не удалось сохранить выбор.";
+        return;
+      }
+      state.picking = false;
+      state.selected = null;
+      load();
+    }
+
+    function setSetup(open) {
+      document.getElementById("setup").hidden = !open;
+      document.querySelector(".toolbar").hidden = open;
+      document.getElementById("days").hidden = open;
+      document.getElementById("meta").hidden = open;
+      document.getElementById("cards").hidden = open;
+      document.getElementById("pin").hidden = open || embed;
+      document.getElementById("change").hidden = open;
+    }
 
     function parentHass() {
       try {
@@ -517,11 +682,11 @@
     function containsCard(node) {
       if (!node || typeof node !== "object") return false;
       if (node.type === "custom:dgtu-raspisanie-card") return true;
+      if (node.type === "iframe" && String(node.url || "").includes("hassio_ingress")) return true;
       return ["cards", "sections", "views"].some((key) => Array.isArray(node[key]) && node[key].some(containsCard));
     }
 
-    function insertCard(view) {
-      const card = { type: "custom:dgtu-raspisanie-card", grid_options: { columns: 12, rows: "auto" } };
+    function insertCard(view, card) {
       if (Array.isArray(view.sections)) {
         if (!view.sections.length) view.sections.push({ type: "grid", cards: [] });
         const cards = view.sections[0].cards || (view.sections[0].cards = []);
@@ -533,43 +698,71 @@
       view.cards.unshift(card);
     }
 
+    function callHass(hass, message) {
+      if (typeof hass.callWS === "function") return hass.callWS(message);
+      return hass.connection.sendMessagePromise(message);
+    }
+
+    function ingressCard() {
+      const path = location.pathname.endsWith("/") ? location.pathname : location.pathname + "/";
+      return { type: "iframe", url: path + "?embed=1", aspect_ratio: "140%" };
+    }
+
+    function showManual(note, reason) {
+      const card = ingressCard();
+      const yaml = "type: iframe\nurl: " + card.url + "\naspect_ratio: \"140%\"";
+      note.innerHTML = `${reason ? escapeHtml(reason) + ". " : ""}В поиске карточек наберите «Ручная» и вставьте:<pre class="manual">${escapeHtml(yaml)}</pre>`;
+    }
+
     async function pinToDashboard() {
       const note = document.getElementById("pin-note");
       const hass = parentHass();
       if (!hass) {
-        note.textContent = "Откройте пункт «Расписание» в боковой панели Home Assistant и нажмите кнопку ещё раз.";
+        note.textContent = "Откройте «Расписание» из боковой панели Home Assistant, не из отдельной вкладки.";
         return;
       }
       note.textContent = "Добавляю на обзор…";
+      let customReady = false;
       try {
-        const resources = await hass.callWS({ type: "lovelace/resources" });
-        const current = (resources || []).find((item) => (item.url || "").includes("dgtu-raspisanie-card.js"));
+        const resources = asList(await callHass(hass, { type: "lovelace/resources" }));
+        const current = resources.find((item) => (item.url || "").includes("dgtu-raspisanie-card.js"));
         if (!current) {
-          await hass.callWS({ type: "lovelace/resources/create", url: CARD_RESOURCE, res_type: "module" });
+          await callHass(hass, { type: "lovelace/resources/create", url: CARD_RESOURCE, res_type: "module" });
         } else if (current.url !== CARD_RESOURCE) {
-          await hass.callWS({
+          await callHass(hass, {
             type: "lovelace/resources/update",
             resource_id: current.id,
             url: CARD_RESOURCE,
             res_type: "module",
           });
         }
-        const config = await hass.callWS({ type: "lovelace/config", url_path: null });
+        customReady = true;
+      } catch (error) {
+        customReady = false;
+      }
+      try {
+        const config = await callHass(hass, { type: "lovelace/config", url_path: null });
         const views = config.views || [];
         if (!views.length || config.strategy || views[0].strategy) {
-          note.textContent = "Карточка уже в списке. На обзоре нажмите карандаш, затем «Добавить карточку» и выберите «Расписание ДГТУ».";
+          showManual(note, "Этот обзор собран автоматически");
           return;
         }
         if (containsCard(views[0])) {
-          note.textContent = "Расписание уже стоит на главном экране. Обновите страницу, если его не видно.";
+          note.textContent = "Расписание уже есть на главном экране. Обновите обзор.";
           return;
         }
-        insertCard(views[0]);
-        await hass.callWS({ type: "lovelace/config/save", url_path: null, config });
+        insertCard(views[0], customReady ? { type: "custom:dgtu-raspisanie-card", grid_options: { columns: 12, rows: "auto" } } : ingressCard());
+        await callHass(hass, { type: "lovelace/config/save", url_path: null, config });
         note.textContent = "Готово. Обновите главную страницу — расписание будет на обзоре.";
       } catch (error) {
-        note.textContent = "Не получилось вставить карточку самому. На обзоре нажмите карандаш → Добавить карточку → Расписание ДГТУ.";
+        showManual(note, error.message || "Не удалось сохранить обзор");
       }
+    }
+
+    function asList(value) {
+      if (Array.isArray(value)) return value;
+      if (value && Array.isArray(value.resources)) return value.resources;
+      return [];
     }
 
     load(new URLSearchParams(location.search).get("date"));

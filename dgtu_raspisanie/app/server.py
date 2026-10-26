@@ -20,6 +20,7 @@ INDEX_PATH = APP_DIR / "static" / "index.html"
 CARD_PATH = APP_DIR / "static" / "dgtu-raspisanie-card.js"
 PREVIEW_PATH = APP_DIR / "static" / "preview.html"
 OPTIONS_PATH = Path(os.environ.get("OPTIONS_PATH", "/data/options.json"))
+PROFILE_PATH = Path(os.environ.get("PROFILE_PATH", "/data/profile.json"))
 HOST = os.environ.get("HOST", "0.0.0.0")
 PORT = int(os.environ.get("PORT", "8099"))
 TZ = ZoneInfo("Europe/Moscow")
@@ -173,8 +174,91 @@ def load_options():
     defaults["name"] = str(defaults["name"]).strip()
     defaults["university"] = str(defaults["university"]).strip() or "ДГТУ"
     defaults["target"] = str(defaults["target"]).strip() or "Группа"
+    profile = read_profile()
+    if str(profile.get("name") or "").strip():
+        defaults["name"] = str(profile["name"]).strip()
+        if profile.get("university"):
+            defaults["university"] = str(profile["university"]).strip()
+        if profile.get("target"):
+            defaults["target"] = str(profile["target"]).strip()
+        try:
+            if profile.get("subgroup") is not None:
+                defaults["subgroup"] = min(20, max(0, int(profile["subgroup"])))
+        except (TypeError, ValueError):
+            pass
     _options_cache = (now, defaults)
     return defaults
+
+
+def read_profile():
+    try:
+        data = json.loads(PROFILE_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_profile(profile):
+    global _options_cache
+    PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    temporary = PROFILE_PATH.with_suffix(".json.tmp")
+    temporary.write_text(json.dumps(profile, ensure_ascii=False), encoding="utf-8")
+    temporary.replace(PROFILE_PATH)
+    _options_cache = (0.0, {})
+    with _lock:
+        _weeks.clear()
+    threading.Thread(target=_republish, name="dgtu-republish", daemon=True).start()
+
+
+def _republish():
+    try:
+        from publish import install_card, push_state, write_json
+
+        install_card()
+        payload = collect_dashboard()
+        write_json(payload)
+        push_state(payload)
+    except Exception:
+        traceback.print_exc()
+
+
+def search_people(university, target, query):
+    query = query.strip()
+    if len(query) < 2:
+        return []
+    base, _label = university_of({"university": university})
+    kind = target_of({"target": target})
+    items = list_items(base, academic_year(today_moscow()), kind)
+    folded = fold(query)
+    packed = compact(query)
+    ranked = []
+    for item in items:
+        name = item.get("name") or ""
+        if not name:
+            continue
+        folded_name = fold(name)
+        packed_name = compact(name)
+        if folded not in folded_name and packed not in packed_name:
+            continue
+        if folded_name == folded or packed_name == packed:
+            score = 0
+        elif folded_name.startswith(folded) or packed_name.startswith(packed):
+            score = 1
+        else:
+            score = 2
+        ranked.append((score, name.casefold(), item))
+    ranked.sort(key=lambda row: (row[0], row[1]))
+    results = []
+    for _score, _sort_name, item in ranked[:20]:
+        name = item.get("name") or ""
+        if kind == "group":
+            course = item.get("kurs")
+            faculty = item.get("facul") or ""
+            detail = " · ".join(part for part in ([f"{course} курс"] if course else []) + ([faculty] if faculty else []))
+        else:
+            detail = item.get("kaf") or ""
+        results.append({"name": name, "detail": detail})
+    return results
 
 
 def ssl_context():
@@ -545,6 +629,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._dashboard_file()
             elif parsed.path == "/api/health":
                 self._send_json(200, {"ok": True})
+            elif parsed.path == "/api/profile":
+                options = load_options()
+                self._send_json(200, {
+                    "ok": True,
+                    "university": options["university"],
+                    "target": options["target"],
+                    "name": options["name"],
+                })
+            elif parsed.path == "/api/search":
+                self._search(parse_qs(parsed.query))
             elif parsed.path == "/api/schedule":
                 self._schedule(parse_qs(parsed.query))
             else:
@@ -552,6 +646,45 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             traceback.print_exc()
             self._send_json(500, {"ok": False, "error": "Внутренняя ошибка приложения"})
+
+    def do_POST(self):
+        try:
+            parsed = urlparse(self.path)
+            if parsed.path != "/api/profile":
+                self._send_json(404, {"ok": False, "error": "Не найдено"})
+                return
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length) if length else b""
+            try:
+                body = json.loads(raw.decode("utf-8"))
+            except json.JSONDecodeError:
+                self._send_json(400, {"ok": False, "error": "Некорректный запрос"})
+                return
+            name = str(body.get("name") or "").strip()
+            if not name:
+                self._send_json(400, {"ok": False, "error": "Выберите группу из списка"})
+                return
+            save_profile({
+                "university": str(body.get("university") or "ДГТУ").strip() or "ДГТУ",
+                "target": str(body.get("target") or "Группа").strip() or "Группа",
+                "name": name,
+                "subgroup": body.get("subgroup") or 0,
+            })
+            self._send_json(200, {"ok": True, "name": name})
+        except Exception:
+            traceback.print_exc()
+            self._send_json(500, {"ok": False, "error": "Внутренняя ошибка приложения"})
+
+    def _search(self, query):
+        university = (query.get("university") or ["ДГТУ"])[0]
+        target = (query.get("target") or ["Группа"])[0]
+        text = (query.get("q") or [""])[0]
+        try:
+            results = search_people(university, target, text)
+        except ScheduleError as exc:
+            self._send_json(200, {"ok": False, "error": str(exc), "results": []})
+            return
+        self._send_json(200, {"ok": True, "results": results})
 
     def _dashboard_file(self):
         from publish import www_dir

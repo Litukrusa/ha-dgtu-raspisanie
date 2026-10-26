@@ -1,5 +1,5 @@
 name: Расписание ДГТУ
-version: "1.1.0"
+version: "1.2.0"
 slug: dgtu_raspisanie
 description: Расписание ДГТУ и ПИ ДГТУ на сегодня, завтра и любой другой день
 url: https://github.com/Litukrusa/ha-dgtu-raspisanie
