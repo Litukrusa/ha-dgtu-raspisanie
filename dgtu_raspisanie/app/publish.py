@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-CARD_VERSION = "1.2.0"
+CARD_VERSION = "1.3.0"
 RESOURCE_URL = f"/local/dgtu-raspisanie-card.js?v={CARD_VERSION}"
 CARD_TYPE = "custom:dgtu-raspisanie-card"
 APP_DIR = Path(__file__).resolve().parent

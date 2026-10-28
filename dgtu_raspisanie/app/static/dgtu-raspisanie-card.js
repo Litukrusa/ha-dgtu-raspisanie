@@ -303,47 +303,65 @@ const CSS = `
     display: grid;
     grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 2px;
-    margin-top: 10px;
+    margin-top: 12px;
+    padding: 4px;
+    border-radius: 16px;
+    background: var(--secondary-background-color, rgba(127, 127, 127, 0.12));
   }
   .chip {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    gap: 2px;
     min-width: 0;
     border-radius: 12px;
     color: var(--secondary-text-color);
-    padding: 4px 0;
+    padding: 6px 0 12px;
   }
-  .chip span { color: var(--primary-text-color); font-weight: 650; font-variant-numeric: tabular-nums; }
-  .chip small { font-size: 0.75rem; }
+  .chip span { color: var(--primary-text-color); font-weight: 680; font-variant-numeric: tabular-nums; line-height: 1; }
+  .chip small { font-size: 0.68rem; letter-spacing: 0.04em; text-transform: uppercase; }
+  .chip.busy::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: 4px;
+    width: 4px;
+    height: 4px;
+    margin-left: -2px;
+    border-radius: 50%;
+    background: var(--primary-color);
+  }
   .chip[aria-pressed="true"] { background: var(--primary-color); }
   .chip[aria-pressed="true"], .chip[aria-pressed="true"] span, .chip[aria-pressed="true"] small {
     color: var(--text-primary-color, #fff);
   }
-  .count { min-height: 1rem; margin: 12px 0 2px; }
+  .chip[aria-pressed="true"].busy::after { background: var(--text-primary-color, #fff); }
+  .count { min-height: 1rem; margin: 14px 0 0; }
   .lesson {
     display: grid;
-    grid-template-columns: 3.4rem 1fr;
+    grid-template-columns: 3.5rem 1fr;
     gap: 10px;
-    padding: 10px 0 10px 10px;
-    border-top: 1px solid var(--divider-color, rgba(127, 127, 127, 0.2));
-    border-left: 3px solid var(--divider-color, rgba(127, 127, 127, 0.35));
+    padding: 13px 2px;
+    border-bottom: 1px solid var(--divider-color, rgba(127, 127, 127, 0.18));
+    border-left: 0;
   }
-  .lesson.lec { border-left-color: var(--success-color, #4caf50); }
-  .lesson.lab { border-left-color: var(--info-color, var(--primary-color)); }
-  .lesson.prac { border-left-color: var(--warning-color, #ff9800); }
-  .lesson.sem { border-left-color: var(--accent-color, #9c27b0); }
-  .lesson.exam { border-left-color: var(--error-color, #f44336); }
+  .lesson.lec .when { color: var(--success-color, #4caf50); }
+  .lesson.lab .when { color: var(--info-color, var(--primary-color)); }
+  .lesson.prac .when { color: var(--warning-color, #ff9800); }
+  .lesson.sem .when { color: var(--accent-color, #9c27b0); }
+  .lesson.exam .when { color: var(--error-color, #f44336); }
   .lesson.current {
-    margin: 0 -8px;
-    padding-right: 8px;
-    border-radius: 10px;
+    margin: 4px -8px;
+    padding: 12px 10px;
+    border-radius: 14px;
+    border-bottom-color: transparent;
     background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.12);
   }
-  .when { font-variant-numeric: tabular-nums; font-weight: 650; font-size: 0.92rem; }
-  .when span { display: block; color: var(--secondary-text-color); font-weight: 500; font-size: 0.75rem; }
-  .name { font-weight: 600; letter-spacing: -0.01em; }
+  .when { font-variant-numeric: tabular-nums; font-weight: 720; font-size: 0.95rem; letter-spacing: -0.03em; }
+  .when span { display: block; color: var(--secondary-text-color); font-weight: 560; font-size: 0.72rem; }
+  .name { font-weight: 640; letter-spacing: -0.02em; font-size: 1.02rem; }
   .name em {
     margin-left: 8px;
     font-style: normal;

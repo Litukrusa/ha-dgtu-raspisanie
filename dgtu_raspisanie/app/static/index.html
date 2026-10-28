@@ -8,16 +8,16 @@
   <style>
     :root {
       color-scheme: dark;
-      --bg: #101418;
-      --bg-raise: #171d24;
-      --card: #1b232c;
-      --line: rgba(255, 255, 255, 0.08);
-      --text: #e8eef4;
-      --muted: #93a1af;
-      --accent: #4ea1ff;
-      --accent-ink: #041221;
-      --now: #3dd68c;
-      --shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+      --bg: #0e1318;
+      --bg-raise: #171e27;
+      --card: #151c24;
+      --line: rgba(232, 238, 244, 0.08);
+      --text: #eef3f8;
+      --muted: #8ea0b3;
+      --accent: #7eb6ff;
+      --accent-ink: #07111c;
+      --now: #5ddeaf;
+      --shadow: none;
       --lec: #3dd68c;
       --lab: #5aa8ff;
       --prac: #ffb020;
@@ -28,28 +28,31 @@
     @media (prefers-color-scheme: light) {
       :root {
         color-scheme: light;
-        --bg: #f3f5f7;
+        --bg: #f4f6f8;
         --bg-raise: #ffffff;
         --card: #ffffff;
-        --line: rgba(18, 32, 48, 0.08);
-        --text: #17202a;
-        --muted: #5d6d7c;
+        --line: rgba(23, 32, 42, 0.08);
+        --text: #15202b;
+        --muted: #5c6e80;
         --accent: #0b6bcb;
         --accent-ink: #ffffff;
-        --now: #0f9f6e;
-        --shadow: 0 8px 24px rgba(23, 32, 42, 0.06);
+        --now: #0c8f62;
+        --shadow: none;
       }
+      body { background: var(--bg); }
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; }
     body {
       font-family: "Segoe UI", system-ui, sans-serif;
-      background: var(--bg);
+      background:
+        radial-gradient(900px 420px at 50% -80px, rgba(126, 182, 255, 0.14), transparent 70%),
+        var(--bg);
       color: var(--text);
-      line-height: 1.4;
+      line-height: 1.45;
     }
     .wrap {
-      width: min(760px, 100%);
+      width: min(640px, 100%);
       margin: 0 auto;
       padding:
         max(16px, env(safe-area-inset-top))
@@ -68,17 +71,18 @@
     }
     .kicker {
       display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: baseline;
+      align-items: center;
+      gap: 10px;
       color: var(--muted);
       font-size: 13px;
     }
+    #week { margin-left: auto; }
     h1 {
-      margin: 2px 0 0;
-      font-size: 28px;
-      letter-spacing: -0.03em;
-      line-height: 1.15;
+      margin: 4px 0 0;
+      font-size: 34px;
+      font-weight: 620;
+      letter-spacing: -0.045em;
+      line-height: 1.05;
     }
     .glance {
       margin: 8px 0 0;
@@ -131,73 +135,103 @@
     .days {
       display: grid;
       grid-template-columns: repeat(7, minmax(0, 1fr));
-      gap: 6px;
-      margin-top: 10px;
+      gap: 2px;
+      margin-top: 12px;
+      padding: 4px;
+      border-radius: 18px;
+      background: var(--bg-raise);
+      border: 1px solid var(--line);
     }
     .chip {
+      position: relative;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1px;
-      border-radius: 12px;
-      border: 1px solid transparent;
+      gap: 2px;
+      min-width: 0;
+      border-radius: 14px;
+      border: 0;
       color: var(--muted);
-      padding: 6px 0;
+      padding: 7px 0 12px;
     }
     .chip .num {
       color: var(--text);
       font-size: 16px;
-      font-weight: 700;
+      font-weight: 680;
       font-variant-numeric: tabular-nums;
+      line-height: 1;
     }
-    .chip small { font-size: 11px; letter-spacing: 0.02em; }
-    .chip[aria-pressed="true"] {
-      background: var(--card);
-      border-color: var(--accent);
-      box-shadow: var(--shadow);
+    .chip small { font-size: 11px; letter-spacing: 0.04em; text-transform: uppercase; }
+    .chip.has::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 5px;
+      width: 4px;
+      height: 4px;
+      margin-left: -2px;
+      border-radius: 50%;
+      background: var(--accent);
     }
+    .chip[aria-pressed="true"] { background: var(--accent); }
     .chip[aria-pressed="true"] small,
-    .chip[aria-pressed="true"] .num { color: var(--accent); }
+    .chip[aria-pressed="true"] .num { color: var(--accent-ink); }
+    .chip[aria-pressed="true"].has::after { background: var(--accent-ink); }
     .chip.has:not([aria-pressed="true"]) .num { color: var(--text); }
     .meta {
       margin: 14px 0 8px;
       color: var(--muted);
       font-size: 13px;
     }
-    .cards { display: flex; flex-direction: column; gap: 10px; }
+    .cards { display: flex; flex-direction: column; }
     .card {
       display: grid;
-      grid-template-columns: 92px 1fr;
-      gap: 10px;
-      padding: 12px 12px 12px 14px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-left: 4px solid var(--other);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
+      grid-template-columns: 64px 1fr;
+      gap: 12px;
+      padding: 16px 4px;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      box-shadow: none;
     }
-    .card.lec { border-left-color: var(--lec); }
-    .card.lab { border-left-color: var(--lab); }
-    .card.prac { border-left-color: var(--prac); }
-    .card.sem { border-left-color: var(--sem); }
-    .card.exam { border-left-color: var(--exam); }
+    .card:first-child { border-top: 1px solid var(--line); }
+    .kind { color: var(--other); }
+    .card.lec .kind { color: var(--lec); }
+    .card.lab .kind { color: var(--lab); }
+    .card.prac .kind { color: var(--prac); }
+    .card.sem .kind { color: var(--sem); }
+    .card.exam .kind { color: var(--exam); }
     .card.current {
-      outline: 1px solid var(--now);
+      margin: 0 -12px;
+      padding-left: 16px;
+      padding-right: 16px;
+      border-radius: 18px;
+      border-bottom-color: transparent;
+      background: rgba(93, 222, 175, 0.1);
     }
     .when {
       font-variant-numeric: tabular-nums;
-      font-weight: 700;
-      letter-spacing: -0.02em;
+      font-weight: 720;
+      font-size: 16px;
+      letter-spacing: -0.03em;
     }
-    .when span, .kind {
+    .when span {
       display: block;
       margin-top: 2px;
       color: var(--muted);
       font-size: 12px;
-      font-weight: 600;
+      font-weight: 620;
     }
-    .title { font-size: 17px; font-weight: 700; letter-spacing: -0.02em; }
+    .kind {
+      display: inline;
+      font-size: 12px;
+      font-weight: 680;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .title { margin-top: 1px; font-size: 18px; font-weight: 640; letter-spacing: -0.03em; }
     .sub { margin-top: 4px; color: var(--muted); font-size: 14px; }
     .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
     .badge, .link {
@@ -231,14 +265,17 @@
     .suggestions { margin: 8px 0 0; padding-left: 18px; }
     .suggestions li { margin: 4px 0; color: var(--text); }
     .pin {
-      width: 100%;
-      margin-top: 12px;
-      min-height: 42px;
-      border-radius: 12px;
+      display: block;
+      width: fit-content;
+      margin: 22px auto 0;
+      min-height: 36px;
+      padding: 0 14px;
+      border-radius: 999px;
       border: 1px solid var(--line);
-      background: var(--bg-raise);
-      color: var(--accent);
-      font-weight: 700;
+      background: transparent;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 620;
     }
     .pin-note {
       margin: 8px 0 0;
@@ -251,25 +288,39 @@
     .choice { margin-top: 12px; }
     #query {
       width: 100%;
-      margin-top: 12px;
-      min-height: 48px;
+      margin-top: 14px;
+      min-height: 52px;
       box-sizing: border-box;
-      border-radius: 12px;
+      border-radius: 16px;
       border: 1px solid var(--line);
       background: var(--bg-raise);
       color: var(--text);
-      padding: 0 14px;
+      padding: 0 16px;
       font: inherit;
+      font-size: 16px;
     }
-    .hits { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    #query:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    .hits { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
     .hit {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       width: 100%;
       text-align: left;
-      min-height: 52px;
-      padding: 10px 12px;
-      border-radius: 14px;
+      min-height: 58px;
+      padding: 10px 14px;
+      border-radius: 16px;
       border: 1px solid var(--line);
-      background: var(--card);
+      background: transparent;
+    }
+    .hit::after {
+      content: "›";
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1;
     }
     .hit strong { display: block; }
     .hit span { color: var(--muted); font-size: 13px; }
@@ -285,12 +336,14 @@
       user-select: all;
     }
     .change {
-      border: 0;
-      background: transparent;
+      border: 1px solid var(--line);
+      background: var(--bg-raise);
       color: var(--accent);
-      font-weight: 700;
-      min-height: 32px;
-      padding: 0;
+      font-size: 13px;
+      font-weight: 650;
+      min-height: 30px;
+      padding: 0 10px;
+      border-radius: 999px;
     }
     .foot {
       margin-top: 16px;
@@ -298,9 +351,9 @@
       font-size: 12px;
     }
     @media (max-width: 560px) {
-      h1 { font-size: 24px; }
-      .card { grid-template-columns: 78px 1fr; }
-      .days { gap: 4px; }
+      h1 { font-size: 28px; }
+      .card { grid-template-columns: 58px 1fr; }
+      .chip small { font-size: 10px; letter-spacing: 0; }
     }
   </style>
 </head>
@@ -323,8 +376,6 @@
         <button type="button" class="nav" id="next" aria-label="Следующая неделя">›</button>
       </div>
       <div class="days" id="days" role="group" aria-label="Дни недели"></div>
-      <button type="button" class="pin" id="pin">На главный экран</button>
-      <p class="pin-note" id="pin-note"></p>
     </header>
     <section class="setup" id="setup" hidden>
       <div class="segment choice" id="unis" role="group" aria-label="Университет">
@@ -342,6 +393,8 @@
     <div id="notice"></div>
     <div class="meta" id="meta"></div>
     <div class="cards" id="cards"></div>
+    <button type="button" class="pin" id="pin">На главный экран</button>
+    <p class="pin-note" id="pin-note"></p>
     <div class="foot" id="foot"></div>
   </div>
   <script>
@@ -555,8 +608,9 @@
       if (lesson.replaced) badges.push(`<span class="badge">Замена</span>`);
       if (lesson.link) badges.push(`<a class="link" href="${escapeHtml(lesson.link)}" target="_blank" rel="noopener">Открыть занятие</a>`);
       return `<article class="card ${escapeHtml(lesson.kind)}${current ? " current" : ""}">
-        <div class="when">${escapeHtml(lesson.start)}<span>${escapeHtml(lesson.end)}</span><span class="kind">${escapeHtml(lesson.kind_label)}</span></div>
+        <div class="when">${escapeHtml(lesson.start)}<span>${escapeHtml(lesson.end)}</span></div>
         <div>
+          <div class="kind">${escapeHtml(lesson.kind_label)}</div>
           <div class="title">${escapeHtml(lesson.title)}</div>
           ${who ? `<div class="sub">${escapeHtml(who)}</div>` : ""}
           ${where ? `<div class="sub">${escapeHtml(where)}</div>` : ""}
@@ -571,7 +625,7 @@
       btnTomorrow.setAttribute("aria-pressed", tomorrow ? "true" : "false");
     }
 
-    const CARD_RESOURCE = "/local/dgtu-raspisanie-card.js?v=1.2.0";
+    const CARD_RESOURCE = "/local/dgtu-raspisanie-card.js?v=1.3.0";
     const embed = new URLSearchParams(location.search).get("embed") === "1";
     const picker = { university: "ДГТУ", target: "Группа" };
     if (embed) document.getElementById("pin").hidden = true;
